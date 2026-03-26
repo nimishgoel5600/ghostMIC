@@ -127,6 +127,7 @@ export interface TranscriptEntry {
   isFinal: boolean;
   isQuestion: boolean;
   speaker?: string;
+  isUser: boolean; // true = your voice, false = interviewer
 }
 
 // ─── Interview Q&A ───────────────────────────────────────────

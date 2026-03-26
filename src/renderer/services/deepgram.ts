@@ -1,4 +1,5 @@
 import type { TranscriptEntry } from '../../shared/types';
+import { useAppStore } from '../store/app-store';
 
 type TranscriptCallback = (entry: TranscriptEntry) => void;
 
@@ -99,12 +100,15 @@ export function startDeepgramTranscription(
       }
       audioStream = stream;
 
+      // Report audio type to the UI store
+      useAppStore.getState().setAudioType(type);
+
       if (type === 'mic') {
         console.log('[GhostMic] Using MICROPHONE (fallback) — interviewer + your voice');
       }
 
-      // Connect to Deepgram
-      const url = `wss://api.deepgram.com/v1/listen?model=nova-2&language=${language}&smart_format=true&interim_results=true&endpointing=300`;
+      // Connect to Deepgram with speaker diarization enabled
+      const url = `wss://api.deepgram.com/v1/listen?model=nova-2&language=${language}&smart_format=true&interim_results=true&endpointing=300&diarize=true`;
       socket = new WebSocket(url, ['token', apiKey]);
 
       socket.onopen = () => {
@@ -133,13 +137,19 @@ export function startDeepgramTranscription(
             const transcript = alt.transcript.trim();
             if (!transcript) return;
 
+            // Get speaker ID from diarization
+            const speakerId = alt.words?.[0]?.speaker?.toString() || null;
+            const userSpeaker = useAppStore.getState().userSpeaker;
+            const isUser = speakerId !== null && speakerId === userSpeaker;
+
             onTranscript({
               id: data.is_final ? `final-${++entryCounter}` : 'interim',
               text: transcript,
               timestamp: Date.now(),
               isFinal: data.is_final,
               isQuestion: false,
-              speaker: alt.words?.[0]?.speaker?.toString(),
+              speaker: speakerId ?? undefined,
+              isUser,
             });
           }
         } catch (err) {

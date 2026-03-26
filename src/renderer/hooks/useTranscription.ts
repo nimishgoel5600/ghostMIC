@@ -14,7 +14,7 @@ export function useTranscription() {
   const language = useAppStore((s) => s.settings.transcriptionLanguage);
 
   const interimIdRef = useRef<string | null>(null);
-  const stoppingRef = useRef(false); // Prevent disconnect → setListening(false) loop
+  const stoppingRef = useRef(false);
 
   useEffect(() => {
     if (!isListening) {
@@ -25,8 +25,7 @@ export function useTranscription() {
     }
 
     if (!deepgramKey) {
-      console.warn('[GhostMic] No Deepgram API key — cannot start listening');
-      // Don't call setListening(false) here; the key might load in a moment
+      console.warn('[GhostMic] No Deepgram API key');
       return;
     }
 
@@ -37,7 +36,11 @@ export function useTranscription() {
 
       if (!entry.isFinal) {
         if (interimIdRef.current) {
-          store.updateTranscriptEntry(interimIdRef.current, { text: entry.text });
+          store.updateTranscriptEntry(interimIdRef.current, {
+            text: entry.text,
+            speaker: entry.speaker,
+            isUser: entry.isUser,
+          });
         } else {
           const id = `interim-${Date.now()}`;
           interimIdRef.current = id;
@@ -52,21 +55,25 @@ export function useTranscription() {
         interimIdRef.current = null;
       }
 
+      // Run question detection
       const sensitivity = store.settings.questionSensitivity;
       const detection = detectQuestion(entry.text, sensitivity);
 
       store.addTranscriptEntry({
         ...entry,
-        isQuestion: detection.isQuestion,
+        isQuestion: entry.isUser ? false : detection.isQuestion, // Never mark user's own speech as question
       });
 
-      if (detection.isQuestion) {
-        console.log('[GhostMic] Question detected:', entry.text, 'confidence:', detection.confidence);
+      // ONLY trigger AI answers for INTERVIEWER's speech, NOT yours
+      if (detection.isQuestion && !entry.isUser) {
+        console.log('[GhostMic] Interviewer question (speaker', entry.speaker + '):', entry.text.substring(0, 50));
         window.dispatchEvent(
           new CustomEvent('ghostmic:question-detected', {
             detail: { text: entry.text, isCoding: detection.isCodingQuestion },
           })
         );
+      } else if (entry.isUser && detection.isQuestion) {
+        console.log('[GhostMic] Skipping YOUR speech (speaker', entry.speaker + '):', entry.text.substring(0, 50));
       }
     };
 
@@ -76,19 +83,12 @@ export function useTranscription() {
       onTranscript,
       (err) => {
         console.error('[GhostMic] Transcription error:', err);
-        // Only reset listening if we weren't intentionally stopping
         if (!stoppingRef.current) {
           useAppStore.getState().setListening(false);
         }
       },
-      () => {
-        console.log('[GhostMic] Deepgram connected — listening');
-      },
-      () => {
-        console.log('[GhostMic] Deepgram disconnected');
-        // Don't auto-set listening to false on disconnect —
-        // could be a normal cleanup from the effect
-      }
+      () => console.log('[GhostMic] Deepgram connected — listening with diarization'),
+      () => console.log('[GhostMic] Deepgram disconnected')
     );
 
     return () => {

@@ -28,6 +28,9 @@ const electronAPI = {
     ipcRenderer.invoke('open-file-dialog', { filters }),
   readFile: (filePath: string) => ipcRenderer.invoke('read-file', filePath),
 
+  // Open macOS system settings (for granting permissions)
+  openScreenRecordingSettings: () => ipcRenderer.send('open-screen-recording-settings'),
+
   // Event listeners
   onScreenCapture: (callback: (data: { imageData: string }) => void) => {
     const listener = (_event: unknown, data: { imageData: string }) => callback(data);

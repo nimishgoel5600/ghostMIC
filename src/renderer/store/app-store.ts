@@ -24,6 +24,10 @@ interface AppState {
   // Audio / Transcription
   isListening: boolean;
   setListening: (val: boolean) => void;
+  audioType: 'system' | 'mic' | null;
+  setAudioType: (val: 'system' | 'mic' | null) => void;
+  userSpeaker: string | null; // speaker ID that is YOU (set by clicking "This is me")
+  setUserSpeaker: (val: string | null) => void;
   transcript: TranscriptEntry[];
   addTranscriptEntry: (entry: TranscriptEntry) => void;
   updateTranscriptEntry: (id: string, update: Partial<TranscriptEntry>) => void;
@@ -71,6 +75,10 @@ export const useAppStore = create<AppState>((set) => ({
   // Audio
   isListening: false,
   setListening: (val) => set({ isListening: val }),
+  audioType: null,
+  setAudioType: (val) => set({ audioType: val }),
+  userSpeaker: null,
+  setUserSpeaker: (val) => set({ userSpeaker: val }),
   transcript: [],
   addTranscriptEntry: (entry) =>
     set((state) => ({ transcript: [...state.transcript, entry] })),

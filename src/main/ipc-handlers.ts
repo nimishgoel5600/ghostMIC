@@ -81,4 +81,10 @@ export function setupIpcHandlers(mainWindow: BrowserWindow): void {
     const buffer = await fs.readFile(filePath);
     return buffer;
   });
+
+  // Open macOS Screen Recording settings
+  ipcMain.on('open-screen-recording-settings', () => {
+    const { shell } = require('electron') as typeof import('electron');
+    shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture');
+  });
 }
